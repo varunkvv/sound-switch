@@ -17,3 +17,7 @@ The menu bar icon follows the current output device. Quit from the popover.
 
 - Launch at login (`SMAppService.mainApp`)
 - Global hotkey to cycle outputs
+
+## License
+
+MIT. See [LICENSE](LICENSE).
