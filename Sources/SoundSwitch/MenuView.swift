@@ -4,6 +4,7 @@ import SwiftUI
 
 struct MenuView: View {
     @Environment(AudioModel.self) private var model
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -28,6 +29,17 @@ struct MenuView: View {
             )
 
             Divider()
+
+            Toggle("Start at Login", isOn: $launchAtLogin)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .onChange(of: launchAtLogin) { _, enabled in
+                    do {
+                        try LaunchAtLogin.setEnabled(enabled)
+                    } catch {
+                        launchAtLogin = LaunchAtLogin.isEnabled
+                    }
+                }
 
             HStack {
                 Button("Sound Settings…") {

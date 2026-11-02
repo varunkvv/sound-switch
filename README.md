@@ -11,11 +11,10 @@ Native SwiftUI `MenuBarExtra` (window style), CoreAudio for devices. Needs macOS
 open build/SoundSwitch.app
 ```
 
-The menu bar icon follows the current output device. Quit from the popover.
+The menu bar icon follows the current output device. Turn on **Start at Login** in the popover to launch it at login (macOS may ask you to approve it in System Settings > General > Login Items). Quit from the popover.
 
 ## Ideas for later
 
-- Launch at login (`SMAppService.mainApp`)
 - Global hotkey to cycle outputs
 
 ## License
