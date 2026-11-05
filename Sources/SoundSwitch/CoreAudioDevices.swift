@@ -3,6 +3,8 @@ import CoreAudio
 struct AudioDevice: Identifiable, Hashable {
     let id: AudioDeviceID
     let name: String
+    /// Stable across reconnects, unlike `id`, so priorities can be keyed on it.
+    let uid: String
     let transport: UInt32
     let hasInput: Bool
     let hasOutput: Bool
@@ -85,17 +87,20 @@ enum CoreAudioDevices {
         guard getValue(id, kAudioDevicePropertyIsHidden, initial: UInt32(0)) != 1 else { return nil }
         let hasInput = channelCount(id, scope: kAudioObjectPropertyScopeInput) > 0
         let hasOutput = channelCount(id, scope: kAudioObjectPropertyScopeOutput) > 0
-        guard hasInput || hasOutput, let name = name(id) else { return nil }
+        guard hasInput || hasOutput,
+              let name = stringProperty(id, kAudioObjectPropertyName),
+              let uid = stringProperty(id, kAudioDevicePropertyDeviceUID)
+        else { return nil }
         let transport = getValue(id, kAudioDevicePropertyTransportType, initial: UInt32(0)) ?? 0
-        return AudioDevice(id: id, name: name, transport: transport, hasInput: hasInput, hasOutput: hasOutput)
+        return AudioDevice(id: id, name: name, uid: uid, transport: transport, hasInput: hasInput, hasOutput: hasOutput)
     }
 
-    private static func name(_ id: AudioDeviceID) -> String? {
-        var address = makeAddress(kAudioObjectPropertyName)
-        var name: CFString = "" as CFString
+    private static func stringProperty(_ id: AudioDeviceID, _ selector: AudioObjectPropertySelector) -> String? {
+        var address = makeAddress(selector)
+        var value: CFString = "" as CFString
         var size = UInt32(MemoryLayout<CFString>.size)
-        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &name) == noErr else { return nil }
-        return name as String
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr else { return nil }
+        return value as String
     }
 
     private static func channelCount(_ id: AudioDeviceID, scope: AudioObjectPropertyScope) -> Int {

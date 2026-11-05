@@ -15,7 +15,8 @@ struct MenuView: View {
                 selectedID: model.defaultOutput,
                 volume: model.outputVolume,
                 onSelect: { model.select($0, input: false) },
-                onVolume: { model.setVolume($0, input: false) }
+                onVolume: { model.setVolume($0, input: false) },
+                onMove: { model.move($0, before: $1, input: false) }
             )
 
             DeviceSection(
@@ -25,7 +26,8 @@ struct MenuView: View {
                 selectedID: model.defaultInput,
                 volume: model.inputVolume,
                 onSelect: { model.select($0, input: true) },
-                onVolume: { model.setVolume($0, input: true) }
+                onVolume: { model.setVolume($0, input: true) },
+                onMove: { model.move($0, before: $1, input: true) }
             )
 
             Divider()
@@ -67,13 +69,23 @@ private struct DeviceSection: View {
     let volume: Float?
     let onSelect: (AudioDevice) -> Void
     let onVolume: (Float) -> Void
+    /// Called with (dragged uid, target uid) when a row is dropped onto another row.
+    let onMove: (String, String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
+            HStack {
+                Text(title.uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if devices.count > 1 {
+                    Text("drag to prioritize")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 8)
 
             if devices.isEmpty {
                 Text("No devices")
@@ -89,6 +101,12 @@ private struct DeviceSection: View {
                     isSelected: device.id == selectedID,
                     action: { onSelect(device) }
                 )
+                .draggable(device.uid)
+                .dropDestination(for: String.self) { uids, _ in
+                    guard let uid = uids.first, uid != device.uid else { return false }
+                    onMove(uid, device.uid)
+                    return true
+                }
             }
 
             if let volume {
