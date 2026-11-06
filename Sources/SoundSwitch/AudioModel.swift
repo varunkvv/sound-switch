@@ -64,6 +64,25 @@ final class AudioModel {
         guard uid != target, let from = order.firstIndex(of: uid) else { return }
         order.remove(at: from)
         order.insert(uid, at: order.firstIndex(of: target) ?? order.endIndex)
+        commitOrder(order, input: input)
+    }
+
+    /// Swaps `uid` with its neighbour among connected devices. Used by the arrow buttons.
+    func nudge(_ uid: String, up: Bool, input: Bool) {
+        var order = order(input: input)
+        let connected = ranked(CoreAudioDevices.all().filter { input ? $0.hasInput : $0.hasOutput }, input: input)
+            .map(\.uid)
+        guard let i = connected.firstIndex(of: uid) else { return }
+        let j = up ? i - 1 : i + 1
+        guard connected.indices.contains(j),
+              let a = order.firstIndex(of: uid),
+              let b = order.firstIndex(of: connected[j]) else { return }
+        order.swapAt(a, b)
+        commitOrder(order, input: input)
+    }
+
+    /// Saves the order, turns priority on, and applies it to the devices connected now.
+    private func commitOrder(_ order: [String], input: Bool) {
         setOrder(order, input: input)
         if !priorityEnabled {
             priorityEnabled = true

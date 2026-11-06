@@ -16,7 +16,8 @@ struct MenuView: View {
                 volume: model.outputVolume,
                 onSelect: { model.select($0, input: false) },
                 onVolume: { model.setVolume($0, input: false) },
-                onMove: { model.move($0, before: $1, input: false) }
+                onMove: { model.move($0, before: $1, input: false) },
+                onNudge: { model.nudge($0, up: $1, input: false) }
             )
 
             DeviceSection(
@@ -27,7 +28,8 @@ struct MenuView: View {
                 volume: model.inputVolume,
                 onSelect: { model.select($0, input: true) },
                 onVolume: { model.setVolume($0, input: true) },
-                onMove: { model.move($0, before: $1, input: true) }
+                onMove: { model.move($0, before: $1, input: true) },
+                onNudge: { model.nudge($0, up: $1, input: true) }
             )
 
             Divider()
@@ -71,6 +73,8 @@ private struct DeviceSection: View {
     let onVolume: (Float) -> Void
     /// Called with (dragged uid, target uid) when a row is dropped onto another row.
     let onMove: (String, String) -> Void
+    /// Called with (uid, true) to raise a device one place, (uid, false) to lower it.
+    let onNudge: (String, Bool) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -94,12 +98,15 @@ private struct DeviceSection: View {
                     .padding(.vertical, 6)
             }
 
-            ForEach(devices) { device in
+            ForEach(Array(devices.enumerated()), id: \.element.id) { index, device in
                 DeviceRow(
                     device: device,
                     input: input,
                     isSelected: device.id == selectedID,
-                    action: { onSelect(device) }
+                    canMoveUp: index > 0,
+                    canMoveDown: index < devices.count - 1,
+                    action: { onSelect(device) },
+                    onNudge: { up in onNudge(device.uid, up) }
                 )
                 .draggable(device.uid)
                 .dropDestination(for: String.self) { uids, _ in
@@ -131,39 +138,51 @@ private struct DeviceRow: View {
     let device: AudioDevice
     let input: Bool
     let isSelected: Bool
+    let canMoveUp: Bool
+    let canMoveDown: Bool
     let action: () -> Void
+    /// Called with true to raise the device one place, false to lower it.
+    let onNudge: (Bool) -> Void
 
     @State private var isHovering = false
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: device.symbol(input: input))
-                    .frame(width: 20)
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+        HStack(spacing: 2) {
+            Button(action: action) {
+                HStack(spacing: 10) {
+                    Image(systemName: device.symbol(input: input))
+                        .frame(width: 20)
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
 
-                Text(device.name)
-                    .fontWeight(isSelected ? .semibold : .regular)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    Text(device.name)
+                        .fontWeight(isSelected ? .semibold : .regular)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
-                Spacer(minLength: 8)
+                    Spacer(minLength: 8)
 
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.accentColor)
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.accentColor)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(rowFill)
-            )
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            if isHovering {
+                ReorderButton(systemName: "chevron.up", help: "Raise priority", enabled: canMoveUp) { onNudge(true) }
+                ReorderButton(systemName: "chevron.down", help: "Lower priority", enabled: canMoveDown) { onNudge(false) }
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(rowFill)
+        )
         .onHover { isHovering = $0 }
     }
 
@@ -171,5 +190,23 @@ private struct DeviceRow: View {
         if isSelected { return Color.accentColor.opacity(0.15) }
         if isHovering { return Color.primary.opacity(0.08) }
         return .clear
+    }
+}
+
+private struct ReorderButton: View {
+    let systemName: String
+    let help: String
+    let enabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.caption2.weight(.bold))
+                .frame(width: 14, height: 14)
+        }
+        .buttonStyle(.borderless)
+        .disabled(!enabled)
+        .help(help)
     }
 }
